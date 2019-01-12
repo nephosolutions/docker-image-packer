@@ -1,3 +1,17 @@
+#   Copyright 2018 NephoSolutions SPRL, Sebastian Trebitz
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
 version: 2
 jobs:
   build:
@@ -10,44 +24,23 @@ jobs:
       - checkout
       - setup_remote_docker
       - restore_cache:
-          keys:
-            - v1-{{ .Branch }}
-          paths:
-            - /caches/${DOCKER_IMAGE_OWNER}-${DOCKER_IMAGE_NAME}.tar
+          key: v1-{{ .Branch }}
       - run:
-          name: Load Docker image layer cache
+          name: Build Docker image
           command: |
-            set +o pipefail
-            docker load -i /caches/${DOCKER_IMAGE_OWNER}-${DOCKER_IMAGE_NAME}.tar | true
-      - run:
-          name: Build application Docker image
-          command: |
-            docker build --cache-from=${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME} -t ${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME} .
-      - run:
-          name: Save Docker image layer cache
-          command: |
-            mkdir -p /caches
-            docker save -o /caches/${DOCKER_IMAGE_OWNER}-${DOCKER_IMAGE_NAME}.tar ${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}
+            make .cache/${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}.tar
       - save_cache:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
-            - /caches/${DOCKER_IMAGE_OWNER}-${DOCKER_IMAGE_NAME}.tar
-      - run:
-          name: Test application Docker image
-          command: |
-            docker run --rm ${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME} ${DOCKER_IMAGE_NAME} --version
+            - .cache
       - deploy:
-          name: Tag and push application Docker image
+          name: Tag and push Docker image
           command: |
-            export DOCKER_IMAGE_VERSION=$(awk '/ENV PACKER_VERSION/ {print $3}' Dockerfile) 
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
 
               docker tag "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}" "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
               docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
-
-              docker tag "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}" "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_VERSION}"
-              docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_VERSION}"
 
               docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}"
             fi

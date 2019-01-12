@@ -12,37 +12,37 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-ARG ALPINE_VERSION=3.7
+ARG ALPINE_VERSION
+ARG ANSIBLE_VERSION
 
 FROM alpine:${ALPINE_VERSION} as downloader
-ENV PACKER_VERSION 1.2.4
 
-COPY releases_public_key .
+RUN apk add --no-cache --update \
+      gnupg
 
-RUN apk add --no-cache --update gnupg
+WORKDIR /tmp
+
+COPY hashicorp-releases-public-key.asc .
+RUN gpg --import hashicorp-releases-public-key.asc
+
+ARG PACKER_VERSION
+ENV PACKER_VERSION ${PACKER_VERSION}
 
 ADD https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip packer_${PACKER_VERSION}_linux_amd64.zip
 ADD https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_SHA256SUMS.sig packer_${PACKER_VERSION}_SHA256SUMS.sig
 ADD https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_SHA256SUMS packer_${PACKER_VERSION}_SHA256SUMS
 
-RUN gpg --import releases_public_key
 RUN gpg --verify packer_${PACKER_VERSION}_SHA256SUMS.sig packer_${PACKER_VERSION}_SHA256SUMS
 
 RUN grep linux_amd64 packer_${PACKER_VERSION}_SHA256SUMS > packer_${PACKER_VERSION}_SHA256SUMS_linux_amd64
 RUN sha256sum -cs packer_${PACKER_VERSION}_SHA256SUMS_linux_amd64
 
-RUN unzip packer_${PACKER_VERSION}_linux_amd64.zip -d /usr/local/bin
+WORKDIR /usr/local/bin
+
+RUN unzip /tmp/packer_${PACKER_VERSION}_linux_amd64.zip
 
 
-FROM alpine:${ALPINE_VERSION}
+FROM nephosolutions/ansible:${ANSIBLE_VERSION}
 LABEL maintainer="sebastian@nephosolutions.com"
-
-RUN apk add --no-cache --update git jq make openssh
-
-RUN addgroup circleci && \
-    adduser -G circleci -D circleci
-
-USER circleci
-WORKDIR /home/circleci
 
 COPY --from=downloader /usr/local/bin/packer /usr/local/bin/packer

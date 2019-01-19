@@ -1,4 +1,4 @@
-#   Copyright 2018 NephoSolutions SPRL, Sebastian Trebitz
+#   Copyright 2019 NephoSolutions SPRL, Sebastian Trebitz
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -12,14 +12,28 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+config: &config
+  docker:
+    - image: nephosolutions/docker
+  environment:
+    - DOCKER_IMAGE_OWNER: nephosolutions
+    - DOCKER_IMAGE_NAME: packer
+
+commit_filters: &commit_filters
+  branches:
+    only:
+      - master
+
+release_filters: &release_filters
+  branches:
+    ignore: /.*/
+  tags:
+    only: /[0-9]+(\.[0-9]+)*/
+
 version: 2
 jobs:
   build:
-    docker:
-      - image: nephosolutions/docker
-    environment:
-      - DOCKER_IMAGE_OWNER: nephosolutions
-      - DOCKER_IMAGE_NAME: packer
+    <<: *config
     steps:
       - checkout
       - setup_remote_docker
@@ -33,14 +47,57 @@ jobs:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
             - .cache
+  deploy:
+    <<: *config
+    steps:
+      - checkout
+      - setup_remote_docker
+      - restore_cache:
+          key: v1-{{ .Branch }}
       - deploy:
           name: Tag and push Docker image
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+            docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
 
+            make restore
+
+            if [ ! -z "${CIRCLE_BRANCH}" ]; then
               docker tag "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}" "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
               docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
+            fi
 
+            if [ ! -z "${CIRCLE_TAG}" ]; then
+              docker tag "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}" "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_TAG}"
+              docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_TAG}"
+            fi
+
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
               docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}"
             fi
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters: *commit_filters
+  release:
+    jobs:
+      - build:
+          filters: *release_filters
+      - deploy:
+          requires:
+            - build
+          filters: *release_filters
+  weekly:
+    triggers:
+      - schedule:
+          cron: "0 3 * * 6"
+          filters: *commit_filters
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build

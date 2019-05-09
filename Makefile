@@ -13,13 +13,13 @@
 #   limitations under the License.
 
 DOCKER_IMAGE_OWNER	:= nephosolutions
-DOCKER_IMAGE_NAME		:= packer
+DOCKER_IMAGE_NAME	:= packer
 
 ALPINE_VERSION	:= 3.9
 ANSIBLE_VERSION	:= 2.7.10
 PACKER_VERSION	:= 1.4.0
 
-CACHE_DIR 		:= .cache
+CACHE_DIR	:= .cache
 
 remove = $(if $(strip $1),rm -rf $(strip $1))
 

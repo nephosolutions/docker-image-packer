@@ -36,19 +36,10 @@ jobs:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
             - .cache
-  deploy:
-    <<: *config
-    steps:
-      - checkout
-      - setup_remote_docker
-      - restore_cache:
-          key: v1-{{ .Branch }}
       - deploy:
           name: Tag and push Docker image
           command: |
             docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-
-            make restore
 
             docker tag  "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}" "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_SHA1}"
             docker push "${DOCKER_IMAGE_OWNER}/${DOCKER_IMAGE_NAME}:${CIRCLE_SHA1}"
@@ -81,13 +72,6 @@ workflows:
   commit:
     jobs:
       - build
-      - deploy:
-          requires:
-            - build
-          filters:
-            branches:
-              only:
-                - master
   release:
     jobs:
       - tag:
@@ -106,6 +90,3 @@ workflows:
                 - master
     jobs:
       - build
-      - deploy:
-          requires:
-            - build

@@ -16,14 +16,16 @@ DOCKER_IMAGE_OWNER	:= nephosolutions
 DOCKER_IMAGE_NAME	:= packer
 
 ALPINE_VERSION	:= 3.9
-ANSIBLE_VERSION	:= 2.8.2-2
-PACKER_VERSION	:= 1.4.1
+ANSIBLE_VERSION	:= 2.8.3
+PACKER_VERSION	:= 1.4.3
 
 CACHE_DIR	:= .cache
 
 remove = $(if $(strip $1),rm -rf $(strip $1))
 
-$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME): restore
+$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME):
+	$(if $(wildcard $(CACHE_DIR)/$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME).tar),docker load --input $(CACHE_DIR)/$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME).tar)
+
 	docker build \
 	--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 	--build-arg ANSIBLE_VERSION=$(ANSIBLE_VERSION) \
@@ -37,8 +39,3 @@ $(CACHE_DIR)/$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME).tar: $(DOCKER_IMAGE_OWNE
 
 clean:
 	$(call remove,$(wildcard $(CACHE_DIR)))
-
-restore:
-	$(if $(wildcard $(CACHE_DIR)/$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME).tar),docker load --input $(CACHE_DIR)/$(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME).tar)
-
-.PHONY: clean restore $(DOCKER_IMAGE_OWNER)/$(DOCKER_IMAGE_NAME)

@@ -1,0 +1,15 @@
+---
+repos:
+  - repo: git://github.com/pre-commit/pre-commit-hooks
+    rev: v4.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-case-conflict
+      - id: check-merge-conflict
+  - repo: git://github.com/syntaqx/git-hooks
+    rev: v0.0.17
+    hooks:
+      - id: circleci-config-validate
